@@ -74,7 +74,7 @@ properties = {
     "ide_version": "{runtime.ide.version}",
     "build.path": build_dir,
     "build.project_name": project_name,
-    "build.arch": args.arch.lower(),
+    "build.arch": args.arch.upper(),
     "serial.port.file": basename(args.serial_port),
 }
 
