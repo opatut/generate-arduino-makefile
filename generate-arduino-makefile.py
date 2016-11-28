@@ -12,11 +12,7 @@ from glob import glob
 import re
 import os
 import argparse
-from os.path import join, abspath, isabs, basename, dirname
-
-### Parse args
-
-# --board adafruit_feather_m0 --vendor adafruit --arch SAMD --lib I2Cdev --libe Wire
+from os.path import join, abspath, isabs, basename, dirname, expanduser, isdir
 
 parser = argparse.ArgumentParser(description='Generate a Makefile that performs compilation/upload actions just like the Arduino IDE.')
 parser.add_argument('-b', '--board', help='select a board', required=True)
@@ -28,19 +24,38 @@ parser.add_argument('-n', '--name', help='project name')
 parser.add_argument('-s', '--source-dir', dest='source_dir', help='source directory, relative to root or absolute', default='src')
 parser.add_argument('-B', '--build-dir', dest='build_dir', help='build directory, relative to root or absolute', default='build')
 parser.add_argument('-l', '--lib', '--library', dest='libraries', help='library to include', action='append')
-parser.add_argument('-L', '--library-directory', dest='library_directories', help='where to search for libraries', action='append')
+parser.add_argument('-L', '--library-directory', dest='library_directories', help='where to search for libraries', action='append', default=[])
 parser.add_argument('-V', '--verbose', help='talk a lot', action='store_true')
 parser.add_argument('-C', '--compile-flags', help='more args for gcc', action='store')
+parser.add_argument('-P', '--serial-port', dest='serial_port', default='/dev/ttyACM0')
 args = parser.parse_args()
 
 template_file = join(dirname(abspath(__file__)), "template.mk")
 with open(template_file, "r") as f:
     template = f.read()
 
+def find_hardware_path():
+    hardware_root = expanduser("~/.arduino15/packages/{}/hardware/{}".format(args.vendor, args.arch))
+
+    if not isdir(hardware_root) and args.vendor == "arduino":
+        hardware_root = expanduser("/usr/share/arduino/hardware/{}".format(args.arch))
+
+    if not isdir(hardware_root):
+        raise Exception("Hardware folder not found: " + hardware_root)
+
+    versions = sorted(os.listdir(hardware_root))
+
+    if not versions:
+        raise Exception("No versions found in hardware root " + hardware_root)
+
+    return join(hardware_root, versions[-1])
+
+hardware_path = find_hardware_path()
+
 arduino_dirs = [
-    "/home/paul/.arduino15/packages/adafruit/hardware/samd/1.0.13/",
-    "/home/paul/.arduino15/packages/arduino/",
-    "/home/paul/src/arduino",
+    hardware_path,
+    dirname(hardware_path),
+    abspath(expanduser("~/.arduino15/packages/arduino")),
     "/usr/share/arduino/",
 ]
 
@@ -59,8 +74,8 @@ properties = {
     "ide_version": "{runtime.ide.version}",
     "build.path": build_dir,
     "build.project_name": project_name,
-    "build.arch": args.arch,
-    "serial.port.file": "ttyACM0",
+    "build.arch": args.arch.lower(),
+    "serial.port.file": basename(args.serial_port),
 }
 
 # read hardware configurations
@@ -95,8 +110,6 @@ for arduino_dir in arduino_dirs:
 
             properties["runtime.tools.{}.path".format(name)] = version_dir
             properties["runtime.tools.{}-{}.path".format(name, version)] = version_dir
-
-
 
 def load_config():
     global properties
@@ -242,14 +255,14 @@ for source, target in compiler_step_dirs.items():
     )
 
 
-reset = "{}/ard-reset-arduino --caterina /dev/ttyACM0".format(abspath(dirname(__file__)))
+reset = "{}/ard-reset-arduino --caterina {}".format(abspath(dirname(__file__)), args.serial_port)
 
 # get the
 result = template.format(
     build_dir=build_dir,
     core_path=get_config('build.core.path', {}),
     extract_targets=" ".join(["$(OBJDIR)/{}.{}".format(project_name, ext) for ext in extract_extensions]),
-    extractions="\n".join("$(OBJDIR)/{}.{}: $(OBJS) $(OBJDIR)/{}.elf\n\t@echo \":: Extracting $@\"\n\t{}{}""".format(project_name, ext, project_name, '' if args.verbose else '@', get_extract_recipe(ext)) for ext in extract_extensions),
+    extractions="\n".join("$(OBJDIR)/{}.{}: $(OBJS) $(OBJDIR)/{}.elf\n\t{}{}""".format(project_name, ext, project_name, '' if args.verbose else '@', get_extract_recipe(ext)) for ext in extract_extensions),
     includes=" ".join(["-I{}".format(include_path) for include_path in include_paths]),
     lib_dirs=" ".join(lib_dirs),
     project_name=project_name,
