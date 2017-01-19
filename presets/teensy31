@@ -1,0 +1,9 @@
+--board teensy31
+--vendor arduino
+--arch teensy
+-L /usr/share/arduino/libraries/
+-L ~/.arduino/sketches/libraries/
+--option build.fcpu 96000000
+--option build.usbtype USB_SERIAL
+--option build.keylayout US_ENGLISH
+--option build.flags.ldspecs '--specs=nano.specs'

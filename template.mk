@@ -1,6 +1,6 @@
 INCLUDES     = {includes}
 OBJDIR       = {build_dir}
-SRCDIR       = {source_dir}
+SRC_DIRS     = {source_dirs}
 LIB_DIRS     = {lib_dirs}
 CORE_PATH    = {core_path}
 VARIANT_PATH = {variant_path}
@@ -12,9 +12,9 @@ rwildcard=$(foreach d,$(filter-out .%,$(wildcard $1*)),$(call rwildcard,$d/,$2) 
 
 get_objects=$(1:%=%.o)
 
-PROJECT_SRCS     := $(call rwildcard,$(SRCDIR),*.c *.cpp *.S)
+PROJECT_SRCS     := $(call rwildcard,$(SRC_DIRS),*.c *.cpp *.S)
 PROJECT_SRC_OBJS := $(call get_objects,$(PROJECT_SRCS))
-PROJECT_OBJS     := $(patsubst $(SRCDIR)/%,$(OBJDIR)/%,$(PROJECT_SRC_OBJS))
+PROJECT_OBJS     := $(foreach src,$(SRC_DIRS),$(patsubst $(src)/%,$(OBJDIR)/%,$(filter $(src)/%,$(PROJECT_SRC_OBJS))))
 
 CORE_SRCS     := $(call rwildcard,$(CORE_DIRS),*.c *.cpp *.S)
 CORE_SRC_OBJS := $(call get_objects,$(CORE_SRCS))
@@ -30,12 +30,14 @@ all: {extract_targets}
 
 {compiler_steps}
 
+$(info $(LIB_SRCS))
+
 # the core library
-$(OBJDIR)/core.a: $(OBJS) $(CORE_OBJS)
+$(OBJDIR)/core/core.a: $(OBJS) $(CORE_OBJS)
 	{silent}mkdir -p $(dir $@)
 	{silent}for obj in $^; do {recipe_a}; done
 
-$(OBJDIR)/{project_name}.elf: $(PROJECT_OBJS) $(LIB_OBJS) $(OBJDIR)/core.a
+$(OBJDIR)/{project_name}.elf: $(PROJECT_OBJS) $(LIB_OBJS) $(OBJDIR)/core/core.a
 	{silent}mkdir -p $(dir $@)
 	{silent}{recipe_combine}
 

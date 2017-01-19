@@ -1,0 +1,5 @@
+--board adafruit_feather_m0
+--vendor adafruit
+--arch samd
+-L /usr/share/arduino/libraries/
+-L ~/.arduino/sketches/libraries/
