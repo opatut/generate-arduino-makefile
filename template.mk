@@ -30,8 +30,6 @@ all: {extract_targets}
 
 {compiler_steps}
 
-$(info $(LIB_SRCS))
-
 # the core library
 $(OBJDIR)/core/core.a: $(OBJS) $(CORE_OBJS)
 	{silent}mkdir -p $(dir $@)
